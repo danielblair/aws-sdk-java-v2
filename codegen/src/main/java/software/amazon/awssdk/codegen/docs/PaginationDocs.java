@@ -17,12 +17,16 @@ package software.amazon.awssdk.codegen.docs;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 import software.amazon.awssdk.codegen.model.intermediate.IntermediateModel;
 import software.amazon.awssdk.codegen.model.intermediate.OperationModel;
 import software.amazon.awssdk.codegen.poet.PoetExtensions;
 import software.amazon.awssdk.codegen.utils.PaginatorUtils;
 
 public class PaginationDocs {
+
+    private static final String SUBSCRIBE_METHOD_NAME = "subscribe";
 
     private final OperationModel operationModel;
     private final PoetExtensions poetExtensions;
@@ -73,6 +77,50 @@ public class PaginationDocs {
                         .toString();
     }
 
+    /**
+     * Constructs additional documentation on the async client operation that is appended to the service documentation.
+     */
+    public String getDocsForAsyncOperation() {
+        return CodeBlock.builder()
+                        .add("<p>This is a variant of {@link #$L($T)} operation. "
+                             + "The return type is a custom publisher that can be subscribed to request a stream of response "
+                             + "pages. SDK will internally handle making service calls for you.\n</p>",
+                             operationModel.getMethodName(), requestType())
+                        .add("<p>When the operation is called, an instance of this class is returned.  At this point, "
+                             + "no service calls are made yet and so there is no guarantee that the request is valid. "
+                             + "The subscribe method should be called as a request to stream data. For more info, "
+                             + "see {@link $T#$L($T)}. If there are errors in your "
+                             + "request, you will see the failures only after you start streaming the data.</p>",
+                             getPublisherType(), SUBSCRIBE_METHOD_NAME, getSubscriberType())
+                        // TODO Add code snippets
+                        // .add(getAsyncCodeSnippets())
+                        .build()
+                        .toString();
+    }
+
+    /**
+     * Constructs javadocs for the generated response classes of a paginated operation in Async client.
+     * @param clientInterface A java poet {@link ClassName} type of the Async client interface
+     */
+    public String getDocsForAsyncResponseClass(ClassName clientInterface) {
+        return CodeBlock.builder()
+                        .add("<p>Represents the output for the {@link $T#$L($T)} operation which is a paginated operation."
+                             + " This class is a type of {@link $T} which can be used to provide a sequence of {@link $T} "
+                             + "response pages as per demand from the subscriber.</p>",
+                             clientInterface, getAsyncPaginatedMethodName(), requestType(), getPublisherType(),
+                             syncResponsePageType())
+                        .add("<p>When the operation is called, an instance of this class is returned.  At this point, "
+                             + "no service calls are made yet and so there is no guarantee that the request is valid. "
+                             + "The subscribe method should be called as a request to stream data. For more info, "
+                             + "see {@link $T#$L($T)}. If there are errors in your "
+                             + "request, you will see the failures only after you start streaming the data.</p>",
+                             getPublisherType(), SUBSCRIBE_METHOD_NAME, getSubscriberType())
+                        // TODO Add code snippets
+                        //  .add(getAsyncCodeSnippets())
+                        .build()
+                        .toString();
+    }
+
     private String getSyncCodeSnippets() {
         CodeBlock callOperationOnClient = CodeBlock.builder()
                                            .addStatement("$T responses = client.$L(request)", syncPaginatedResponseType(),
@@ -116,7 +164,14 @@ public class PaginationDocs {
      * @return Method name for the sync paginated operation
      */
     private String getSyncPaginatedMethodName() {
-        return PaginatorUtils.getSyncMethodName(operationModel.getMethodName());
+        return PaginatorUtils.getPaginatedMethodName(operationModel.getMethodName());
+    }
+
+    /**
+     * @return Method name for the Async paginated operation
+     */
+    private String getAsyncPaginatedMethodName() {
+        return PaginatorUtils.getPaginatedMethodName(operationModel.getMethodName());
     }
 
     /**
@@ -140,7 +195,7 @@ public class PaginationDocs {
     /**
      * @return A Poet {@link ClassName} for the return type of sync paginated operation.
      */
-    public ClassName syncPaginatedResponseType() {
+    private ClassName syncPaginatedResponseType() {
         return poetExtensions.getResponseClassForPaginatedSyncOperation(operationModel.getOperationName());
     }
 
@@ -149,5 +204,19 @@ public class PaginationDocs {
                         .add("\n<p><b>Note: If you prefer to have control on service calls, use the {@link #$L($T)} operation."
                              + "</b></p>", operationModel.getMethodName(), requestType())
                         .build();
+    }
+
+    /**
+     * @return A Poet {@link ClassName} for the reactive streams {@link Publisher}.
+     */
+    private ClassName getPublisherType() {
+        return ClassName.get(Publisher.class);
+    }
+
+    /**
+     * @return A Poet {@link ClassName} for the reactive streams {@link Subscriber}.
+     */
+    private ClassName getSubscriberType() {
+        return ClassName.get(Subscriber.class);
     }
 }

@@ -44,7 +44,7 @@ public class PaginatedItemsIterable<ResponseT, ItemT> implements SdkIterable<Ite
         return new ItemsIterator(pagesIterable.iterator());
     }
 
-    private class ItemsIterator implements Iterator<ItemT> {
+    public class ItemsIterator implements Iterator<ItemT> {
 
         private final Iterator<ResponseT> pagesIterator;
         private Iterator<ItemT> singlePageItemsIterator;
